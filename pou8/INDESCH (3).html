@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Geométrico - Tuberías Excéntricas | UPSE</title>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --secondary: #00a8cc;
+            --dark: #1e2a38;
+            --light: #f4f7f6;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --success: #28a745;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light);
+            color: var(--dark);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            background-color: var(--dark);
+            color: white;
+            padding: 15px 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 { margin: 0; font-size: 1.5rem; }
+        header p { margin: 5px 0 0; font-size: 0.9rem; color: #ccc; }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            padding: 20px;
+            flex-grow: 1;
+        }
+        .canvas-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #canvasContainer {
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1;
+            background: #fafafa;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            position: relative;
+        }
+        canvas { width: 100%; height: 100%; }
+        .controls {
+            width: 100%;
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .control-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        .control-group input[type="range"] { width: 100%; }
+        .control-group .value { color: var(--secondary); font-weight: bold; }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .panel h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        .agent-prompt {
+            background: linear-gradient(135deg, #1e2a38 0%, #2c3e50 100%);
+            color: #fff;
+            border: none;
+        }
+        .agent-prompt h3 { color: var(--secondary); border-bottom: 2px solid rgba(255,255,255,0.1); }
+        .agent-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .agent-avatar {
+            width: 40px; height: 40px; background: var(--secondary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 1.2rem;
+        }
+        .agent-status { font-size: 0.8rem; color: var(--success); }
+        .agent-status::before { content: "● "; animation: blink 2s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        #agentOutput {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            min-height: 150px;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .metrics div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #eee;
+        }
+        .metrics span:last-child { font-weight: bold; color: var(--dark); }
+        
+        .footer-info {
+            background: #eee;
+            padding: 10px;
+            font-size: 0.8rem;
+            text-align: center;
+            color: #666;
+        }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Simulador Didáctico: Análisis Geométrico de Tuberías Excéntricas</h1>
+        <p>Basado en el caso de estudio UPSE - Ing. Luis Aníbal Pálate Gaibor | Curso: NIV/2 - NIV-ING-INDUS - B4-408</p>
+    </header>
+
+    <div class="container">
+        <div class="canvas-section">
+            <div id="canvasContainer">
+                <canvas id="geometryCanvas" width="600" height="600"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label>Radio Externo (R): <span id="valR" class="value">200</span> px</label>
+                    <input type="range" id="ctrlR" min="150" max="280" value="200">
+                </div>
+                <div class="control-group">
+                    <label>Radio Interno (r): <span id="valr" class="value">100</span> px</label>
+                    <input type="range" id="ctrlr" min="50" max="140" value="100">
+                </div>
+                <div class="control-group">
+                    <label>Excentricidad (e): <span id="vale" class="value">0.50</span></label>
+                    <input type="range" id="ctrle" min="0" max="1" step="0.01" value="0.5">
+                </div>
+                <div class="control-group">
+                    <label>Ángulo de Análisis (θ): <span id="valTheta" class="value">0</span>°</label>
+                    <input type="range" id="ctrlTheta" min="0" max="360" value="0">
+                </div>
+                <div class="control-group">
+                    <label>Lados del Polígono (N): <span id="valN" class="value">3</span></label>
+                    <input type="range" id="ctrlN" min="3" max="50" value="3">
+                </div>
+                <div class="control-group">
+                    <label>Mostrar Cuadrilátero Asimétrico</label>
+                    <input type="checkbox" id="ctrlQuad" checked>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="panel agent-prompt">
+                <div class="agent-header">
+                    <div class="agent-avatar">AG</div>
+                    <div>
+                        <h3 style="margin:0; border:none;">AGENT-PROMPT</h3>
+                        <span class="agent-status">Analizando modelo geométrico...</span>
+                    </div>
+                </div>
+                <div id="agentOutput">
+                    Inicializando simulador. Ajuste los parámetros para observar el comportamiento de la geometría plana y la fricción.
+                </div>
+            </div>
+
+            <div class="panel metrics">
+                <h3>Parámetros Geométricos e Hidráulicos</h3>
+                <div>Desplazamiento (d): <span id="metricD">0.00</span></div>
+                <div>Área Hidráulica (A_h): <span id="metricArea">0.00</span></div>
+                <div>Perímetro Mojado (P_m): <span id="metricPerim">0.00</span></div>
+                <div>Espesor Local h(θ): <span id="metricH">0.00</span></div>
+                <div>Brecha Máxima (h_max): <span id="metricHmax">0.00</span></div>
+                <div>Brecha Mínima (h_min): <span id="metricHmin">0.00</span></div>
+                <div>Relación Fricción (f_ecc/f_con): <span id="metricFric">1.000</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <strong>Didáctica:</strong> Observe cómo el Área y el Perímetro permanecen constantes (Teorema de traslación de áreas), 
+        pero el espesor local h(θ) y la fricción varían drásticamente. Modifique los "Lados del Polígono" para ver el límite hacia la circunferencia.
+    </div>
+
+    <script>
+        const canvas = document.getElementById('geometryCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const centerX = W / 2;
+        const centerY = H / 2;
+
+        const ctrlR = document.getElementById('ctrlR');
+        const ctrlr = document.getElementById('ctrlr');
+        const ctrle = document.getElementById('ctrle');
+        const ctrlTheta = document.getElementById('ctrlTheta');
+        const ctrlN = document.getElementById('ctrlN');
+        const ctrlQuad = document.getElementById('ctrlQuad');
+
+        const valR = document.getElementById('valR');
+        const valr = document.getElementById('valr');
+        const vale = document.getElementById('vale');
+        const valTheta = document.getElementById('valTheta');
+        const valN = document.getElementById('valN');
+
+        const metricD = document.getElementById('metricD');
+        const metricArea = document.getElementById('metricArea');
+        const metricPerim = document.getElementById('metricPerim');
+        const metricH = document.getElementById('metricH');
+        const metricHmax = document.getElementById('metricHmax');
+        const metricHmin = document.getElementById('metricHmin');
+        const metricFric = document.getElementById('metricFric');
+
+        const agentOutput = document.getElementById('agentOutput');
+
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+            
+            let R = parseInt(ctrlR.value);
+            let r = parseInt(ctrlr.value);
+            let e = parseFloat(ctrle.value);
+            let theta = parseInt(ctrlTheta.value) * Math.PI / 180;
+            let N = parseInt(ctrlN.value);
+            let showQuad = ctrlQuad.checked;
+
+            if (r >= R) {
+                r = R - 10;
+                ctrlr.value = r;
+            }
+
+            let dmax = R - r;
+            let d = e * dmax;
+            let Ah = Math.PI * (R*R - r*r);
+            let Pm = 2 * Math.PI * (R + r);
+            let h_theta = dmax * (1 - e * Math.cos(theta));
+            let h_max = dmax * (1 + e);
+            let h_min = dmax * (1 - e);
+            let fricRatio = 1 / (1 + 1.5 * e * e);
+
+            valR.innerText = R;
+            valr.innerText = r;
+            vale.innerText = e.toFixed(2);
+            valTheta.innerText = ctrlTheta.value;
+            valN.innerText = N;
+
+            metricD.innerText = d.toFixed(2) + " px";
+            metricArea.innerText = Ah.toFixed(2) + " px²";
+            metricPerim.innerText = Pm.toFixed(2) + " px";
+            metricH.innerText = h_theta.toFixed(2) + " px";
+            metricHmax.innerText = h_max.toFixed(2) + " px";
+            metricHmin.innerText = h_min.toFixed(2) + " px";
+            metricFric.innerText = fricRatio.toFixed(3);
+
+            ctx.strokeStyle = '#eee';
+            ctx.beginPath();
+            ctx.moveTo(0, centerY); ctx.lineTo(W, centerY);
+            ctx.moveTo(centerX, 0); ctx.lineTo(centerX, H);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, R, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#0056b3';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 86, 179, 0.05)';
+            ctx.fill();
+
+            let innerX = centerX + d;
+            let innerY = centerY;
+            
+            ctx.beginPath();
+            ctx.arc(innerX, innerY, r, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#00a8cc';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 168, 204, 0.1)';
+            ctx.fill();
+
+            ctx.beginPath();
+            for (let i = 0; i <= N; i++) {
+                let angle = (i * 2 * Math.PI) / N;
+                let px = innerX + r * Math.cos(angle);
+                let py = innerY + r * Math.sin(angle);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = 'rgba(255, 193, 7, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            let endX = centerX + R * Math.cos(theta);
+            let endY = centerY + R * Math.sin(theta);
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            let innerPointX = centerX + (R - h_theta) * Math.cos(theta);
+            let innerPointY = centerY + (R - h_theta) * Math.sin(theta);
+            
+            ctx.beginPath();
+            ctx.arc(innerPointX, innerPointY, 4, 0, 2*Math.PI);
+            ctx.fillStyle = '#dc3545';
+            ctx.fill();
+
+            if (showQuad) {
+                ctx.beginPath();
+                ctx.moveTo(centerX + R, centerY); 
+                ctx.lineTo(innerX + r, innerY);   
+                ctx.lineTo(innerX - r, innerY);   
+                ctx.lineTo(centerX - R, centerY); 
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(40, 167, 69, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(40, 167, 69, 0.1)';
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.fillText("C₁ (R=" + R + ")", 10, 20);
+            ctx.fillText("C₂ (r=" + r + ", d=" + d.toFixed(1) + ")", innerX - 40, innerY - r - 10);
+            ctx.fillText("θ = " + ctrlTheta.value + "°", centerX + 10, centerY - 10);
+            ctx.fillText("h(θ) = " + h_theta.toFixed(1), (centerX + endX)/2, (centerY + endY)/2);
+
+            updateAgent(e, d, dmax, h_min, h_max, fricRatio, N);
+        }
+
+        function updateAgent(e, d, dmax, h_min, h_max, fric, N) {
+            let msg = "<strong>Análisis del Agente:</strong><br>";
+            
+            if (N < 10) {
+                msg += `📌 <em>Polígonos:</em> Se inscribe un polígono de ${N} lados. La geometría discreta es visible. Aumenta los lados para tender al círculo.<br>`;
+            } else if (N < 40) {
+                msg += `📌 <em>Polígonos:</em> Con ${N} lados, el polígono se aproxima visualmente a la circunferencia interna.<br>`;
+            } else {
+                msg += `📌 <em>Polígonos/Círculo:</em> Con ${N} lados, el límite geométrico tiende a una circunferencia perfecta.<br>`;
+            }
+
+            if (e === 0) {
+                msg += "⚙️ <em>Geometría:</em> Sistema concéntrico perfecto (e=0). La distribución del flujo es simétrica.<br>";
+                msg += "💧 <em>Hidráulica:</em> Fricción máxima teórica (Ratio = 1.0).";
+            } else if (e < 0.5) {
+                msg += `⚙️ <em>Geometría:</em> Baja excentricidad. El centro C₂ se desplazó ${d.toFixed(1)}px. Las áreas se mantienen constantes, pero el espesor varía linealmente.<br>`;
+                msg += `💧 <em>Hidráulica:</em> La fricción empieza a reducirse. Ratio actual: ${fric.toFixed(3)}.`;
+            } else if (e < 1) {
+                msg += `⚠️ <em>Geometría:</em> Alta excentricidad. Zona estrecha (h_min=${h_min.toFixed(1)}) vs ancha (h_max=${h_max.toFixed(1)}). Riesgo de zonas muertas.<br>`;
+                msg += `💧 <em>Hidráulica:</em> Caída drástica de fricción. Ratio: ${fric.toFixed(3)}.`;
+            } else {
+                msg += "🚨 <em>LÍMITE FÍSICO:</em> Tuberías totalmente excéntricas (e=1). Contacto tangencial inferior.<br>";
+                msg += `💧 <em>Hidráulica:</em> Fricción reducida al 40% (Reducción del 60%). El fluido escapa por la brecha superior.`;
+            }
+
+            msg += `<br>📐 <em>Ángulos:</em> El vector de análisis θ traza un triángulo imaginario. Usando la Ley de los Cosenos, el espesor local calculado varía dependiendo de la dirección del flujo evaluado.`;
+
+            agentOutput.innerHTML = msg;
+        }
+
+        [ctrlR, ctrlr, ctrle, ctrlTheta, ctrlN, ctrlQuad].forEach(ctrl => {
+            ctrl.addEventListener('input', draw);
+        });
+
+        draw();
+    </script>
+</body>
+</html>
